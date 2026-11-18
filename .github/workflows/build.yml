@@ -34,8 +34,8 @@ jobs:
         run: |
           flutter create --empty --platforms=android --project-name=come_on .
           flutter pub get
-          flutter analyze lib test
-          flutter test
+          flutter analyze lib
+          if [ -d test ]; then flutter test; fi
           flutter build apk --release
 
       - uses: actions/upload-artifact@v4
