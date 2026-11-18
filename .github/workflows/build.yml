@@ -1,0 +1,90 @@
+name: Build Come On (Android APK & Windows EXE)
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check app source
+        run: |
+          test -f pubspec.yaml
+          test -f lib/main.dart
+          test -f lib/core.dart
+          test -f lib/screens.dart
+          test -f lib/stage.dart
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.24.5'
+
+      - name: Generate Android platform shell and build APK
+        run: |
+          flutter create --empty --platforms=android --project-name=come_on .
+          flutter pub get
+          flutter analyze lib test
+          flutter test
+          flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: come_on-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  build-windows:
+    name: Build Windows EXE
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check app source
+        shell: pwsh
+        run: |
+          $required = @(
+            "pubspec.yaml",
+            "lib/main.dart",
+            "lib/core.dart",
+            "lib/screens.dart",
+            "lib/stage.dart"
+          )
+          foreach ($file in $required) {
+            if (!(Test-Path $file)) {
+              throw "Missing app source: $file. Upload the project contents to the repository root."
+            }
+          }
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.24.5'
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Generate Windows platform shell
+        run: flutter create --empty --platforms=windows --project-name=come_on .
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows EXE
+        run: flutter build windows --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: come_on-windows-x64
+          path: build/windows/x64/runner/Release/
+          if-no-files-found: error
